@@ -20,14 +20,10 @@ function Chatbot() {
     setMsgs((m) => [...m, userMsg]);
     setLoading(true);
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("http://localhost:5000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system:
-            "You are NutriAI, a friendly food and nutrition assistant. You help with meal suggestions, recipes, and nutrition advice. Keep responses concise (2-3 sentences max). Be warm and helpful.",
           messages: [
             ...msgs
               .filter((m) => m.role !== "ai" || INITIAL_MESSAGES[0] !== m)
@@ -41,7 +37,7 @@ function Chatbot() {
       });
       const data = await response.json();
       const txt =
-        data.content?.[0]?.text ||
+        data.reply ||
         "Let me help you with that! Could you provide more details about your preferences?";
       setMsgs((m) => [...m, { role: "ai", text: txt }]);
     } catch {
@@ -49,7 +45,7 @@ function Chatbot() {
         ...m,
         {
           role: "ai",
-          text: "I can suggest: For rice and eggs, try Egg Fried Rice (320 kcal) or an Omelette with rice bowl! 🍳",
+          text: "I can suggest: For rice and eggs, try Egg Fried Rice (320 kcal) or an omelette with a rice bowl.",
         },
       ]);
     }

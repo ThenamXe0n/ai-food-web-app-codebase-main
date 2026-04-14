@@ -1,5 +1,138 @@
+import { useEffect, useState } from "react";
+import { createFood, getAllFoods } from "../api/apiCollection/foodApi";
+import { getToken } from "../utils/auth";
+
 function AdminPage() {
   const [section, setSection] = useState("dashboard");
+  const [foods, setFoods] = useState([]);
+  const [showAddFood, setShowAddFood] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [foodImageFile, setFoodImageFile] = useState(null);
+  const [foodForm, setFoodForm] = useState({
+    name: "",
+    emoji: "🍽️",
+    desc: "",
+    imageUrl: "",
+    cal: "",
+    protein: "",
+    carbs: "",
+    fat: "",
+    type: "veg",
+    cuisine: "",
+    price: "",
+    health: "",
+    tags: "",
+    ingredients: "",
+    steps: "",
+  });
+
+  const loadFoods = async () => {
+    try {
+      const res = await getAllFoods({ limit: 50, sort: "rating" });
+      setFoods(Array.isArray(res?.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to load foods for admin table", err);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await getAllFoods({ limit: 50, sort: "rating" });
+        if (!isMounted) return;
+        setFoods(Array.isArray(res?.data) ? res.data : []);
+      } catch (err) {
+        console.error("Failed to load foods for admin table", err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const updateField = (key) => (e) => {
+    const value = e?.target?.value;
+    setFoodForm((p) => ({ ...p, [key]: value }));
+  };
+
+  const onCreateFood = async (e) => {
+    e.preventDefault();
+    if (!getToken()) return;
+
+    try {
+      setIsCreating(true);
+
+      const toNum = (v) => (v === "" || v === null || v === undefined ? undefined : Number(v));
+      const tags = foodForm.tags
+        ? foodForm.tags.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+      const ingredients = foodForm.ingredients
+        ? foodForm.ingredients.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+      const steps = foodForm.steps
+        ? foodForm.steps.split("\n").map((s) => s.trim()).filter(Boolean)
+        : [];
+
+      const payload = {
+        name: foodForm.name.trim(),
+        emoji: foodForm.emoji || "🍽️",
+        desc: foodForm.desc.trim(),
+        imageUrl: foodForm.imageUrl?.trim() || undefined,
+        cal: toNum(foodForm.cal),
+        protein: toNum(foodForm.protein) ?? 0,
+        carbs: toNum(foodForm.carbs) ?? 0,
+        fat: toNum(foodForm.fat) ?? 0,
+        type: foodForm.type,
+        cuisine: foodForm.cuisine.trim(),
+        price: toNum(foodForm.price),
+        health: toNum(foodForm.health),
+        tags,
+        ingredients,
+        steps,
+      };
+
+      if (foodImageFile) {
+        const fd = new FormData();
+        Object.entries(payload).forEach(([k, v]) => {
+          if (v === undefined || v === null) return;
+          if (Array.isArray(v)) {
+            fd.append(k, JSON.stringify(v));
+            return;
+          }
+          fd.append(k, String(v));
+        });
+        fd.append("image", foodImageFile);
+        await createFood(fd);
+      } else {
+        await createFood(payload);
+      }
+      setShowAddFood(false);
+      setFoodImageFile(null);
+      setFoodForm({
+        name: "",
+        emoji: "🍽️",
+        desc: "",
+        imageUrl: "",
+        cal: "",
+        protein: "",
+        carbs: "",
+        fat: "",
+        type: "veg",
+        cuisine: "",
+        price: "",
+        health: "",
+        tags: "",
+        ingredients: "",
+        steps: "",
+      });
+      await loadFoods();
+    } catch (err) {
+      console.error("Failed to create food", err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
   const adminNav = [
     { id: "dashboard", label: "📊 Dashboard" },
     { id: "foods", label: "🍽️ Food Database" },
@@ -100,8 +233,198 @@ function AdminPage() {
                   Manage all food items
                 </p>
               </div>
-              <button className="btn-primary">+ Add Food</button>
+              <button
+                className="btn-primary"
+                onClick={() => setShowAddFood((v) => !v)}
+              >
+                + Add Food
+              </button>
             </div>
+
+            {showAddFood && (
+              <div
+                className="card-panel"
+                style={{ marginBottom: "1.5rem" }}
+              >
+                <div className="panel-title">Add Food</div>
+                <form onSubmit={onCreateFood}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 16,
+                    }}
+                  >
+                    <div className="form-group">
+                      <label className="form-label">Name</label>
+                      <input
+                        className="form-input"
+                        value={foodForm.name}
+                        onChange={updateField("name")}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Emoji</label>
+                      <input
+                        className="form-input"
+                        value={foodForm.emoji}
+                        onChange={updateField("emoji")}
+                      />
+                    </div>
+                    <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                      <label className="form-label">Description</label>
+                      <input
+                        className="form-input"
+                        value={foodForm.desc}
+                        onChange={updateField("desc")}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                      <label className="form-label">Image URL (optional)</label>
+                      <input
+                        className="form-input"
+                        value={foodForm.imageUrl}
+                        onChange={updateField("imageUrl")}
+                        placeholder="http://... or /uploads/..."
+                      />
+                    </div>
+                    <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                      <label className="form-label">Upload Image (optional)</label>
+                      <input
+                        className="form-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setFoodImageFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Cuisine</label>
+                      <input
+                        className="form-input"
+                        value={foodForm.cuisine}
+                        onChange={updateField("cuisine")}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Type</label>
+                      <select
+                        className="filter-select"
+                        value={foodForm.type}
+                        onChange={updateField("type")}
+                      >
+                        <option value="veg">veg</option>
+                        <option value="vegan">vegan</option>
+                        <option value="non-veg">non-veg</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Calories</label>
+                      <input
+                        className="form-input"
+                        inputMode="numeric"
+                        value={foodForm.cal}
+                        onChange={updateField("cal")}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Price (₹)</label>
+                      <input
+                        className="form-input"
+                        inputMode="numeric"
+                        value={foodForm.price}
+                        onChange={updateField("price")}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Protein (g)</label>
+                      <input
+                        className="form-input"
+                        inputMode="numeric"
+                        value={foodForm.protein}
+                        onChange={updateField("protein")}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Carbs (g)</label>
+                      <input
+                        className="form-input"
+                        inputMode="numeric"
+                        value={foodForm.carbs}
+                        onChange={updateField("carbs")}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Fat (g)</label>
+                      <input
+                        className="form-input"
+                        inputMode="numeric"
+                        value={foodForm.fat}
+                        onChange={updateField("fat")}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Health (0-100)</label>
+                      <input
+                        className="form-input"
+                        inputMode="numeric"
+                        value={foodForm.health}
+                        onChange={updateField("health")}
+                      />
+                    </div>
+                    <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                      <label className="form-label">Tags (comma separated)</label>
+                      <input
+                        className="form-input"
+                        value={foodForm.tags}
+                        onChange={updateField("tags")}
+                        placeholder="Budget, Quick"
+                      />
+                    </div>
+                    <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                      <label className="form-label">Ingredients (comma separated)</label>
+                      <input
+                        className="form-input"
+                        value={foodForm.ingredients}
+                        onChange={updateField("ingredients")}
+                        placeholder="rice, eggs, onion"
+                      />
+                    </div>
+                    <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                      <label className="form-label">Steps (one per line)</label>
+                      <textarea
+                        className="form-input"
+                        value={foodForm.steps}
+                        onChange={updateField("steps")}
+                        rows={4}
+                        style={{ resize: "vertical" }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+                    <button
+                      className="btn-primary"
+                      type="submit"
+                      disabled={isCreating}
+                    >
+                      {isCreating ? "Saving..." : "Save Food"}
+                    </button>
+                    <button
+                      className="btn-view"
+                      type="button"
+                      onClick={() => setShowAddFood(false)}
+                      style={{ padding: "10px 18px" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
             <div className="table-wrap">
               <table>
                 <thead>
@@ -116,8 +439,8 @@ function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {FOODS.map((f) => (
-                    <tr key={f.id}>
+                  {foods.map((f) => (
+                    <tr key={f._id || f.id}>
                       <td>
                         <span style={{ marginRight: 8 }}>{f.emoji}</span>
                         {f.name}

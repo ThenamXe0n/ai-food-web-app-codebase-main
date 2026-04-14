@@ -1,12 +1,25 @@
 import Stars from "../ui/Stars";
 
 function FoodCard({ food, onView, liked, onLike }) {
+  const id = food?._id || food?.id;
+  const imageUrl = food?.imageUrl
+    ? food.imageUrl.startsWith("http")
+      ? food.imageUrl
+      : `http://localhost:5000${food.imageUrl}`
+    : null;
   return (
     <div className="food-card">
-      <div className="food-card-img" style={{background: `linear-gradient(135deg, #1a1a1a 0%, #252525 100%)`}}>
+      <div
+        className="food-card-img"
+        style={{
+          background: imageUrl
+            ? `linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.65)), url(${imageUrl}) center/cover no-repeat`
+            : `linear-gradient(135deg, #1a1a1a 0%, #252525 100%)`,
+        }}
+      >
         <span>{food.emoji}</span>
         <span className="food-card-badge">🔥 {food.health}% healthy</span>
-        <button className={`food-card-like${liked ? " liked" : ""}`} onClick={(e)=>{e.stopPropagation();onLike(food.id);}}>
+        <button className={`food-card-like${liked ? " liked" : ""}`} onClick={(e)=>{e.stopPropagation();onLike(id);}}>
           {liked ? "♥" : "♡"}
         </button>
       </div>

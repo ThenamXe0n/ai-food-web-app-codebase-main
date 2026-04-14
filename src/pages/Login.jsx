@@ -1,7 +1,35 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { login, register } from "../api/apiCollection/authApi";
+import { setToken } from "../utils/auth";
 
 function LoginPage({ onNavigate }) {
   const [isLogin, setIsLogin] = useState(true);
+  const {
+    register: rhfRegister,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm({
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (values) => {
+    try {
+      const payload = isLogin
+        ? { email: values.email, password: values.password }
+        : { name: values.name, email: values.email, password: values.password };
+
+      const res = isLogin ? await login(payload) : await register(payload);
+      if (res?.token) setToken(res.token);
+      onNavigate("dashboard");
+    } catch (err) {
+      console.error(isLogin ? "Login failed" : "Register failed", err);
+    }
+  };
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -17,24 +45,39 @@ function LoginPage({ onNavigate }) {
 
         <div className="divider">or use password</div>
 
-        {!isLogin && (
+        <form onSubmit={handleSubmit(onSubmit)}>
+          {!isLogin && (
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
+              <input
+                className="form-input"
+                placeholder="Arjun Sharma"
+                {...rhfRegister("name")}
+              />
+            </div>
+          )}
           <div className="form-group">
-            <label className="form-label">Full Name</label>
-            <input className="form-input" placeholder="Arjun Sharma" />
+            <label className="form-label">Email</label>
+            <input
+              className="form-input"
+              placeholder="you@example.com"
+              {...rhfRegister("email", { required: true })}
+            />
           </div>
-        )}
-        <div className="form-group">
-          <label className="form-label">Email</label>
-          <input className="form-input" placeholder="you@example.com" />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Password</label>
-          <input className="form-input" type="password" placeholder="••••••••" />
-        </div>
+          <div className="form-group">
+            <label className="form-label">Password</label>
+            <input
+              className="form-input"
+              type="password"
+              placeholder="••••••••"
+              {...rhfRegister("password", { required: true })}
+            />
+          </div>
 
-        <button className="auth-submit" onClick={()=>onNavigate("dashboard")}>
-          {isLogin ? "Sign In →" : "Create Account →"}
-        </button>
+          <button className="auth-submit" type="submit" disabled={isSubmitting}>
+            {isLogin ? "Sign In →" : "Create Account →"}
+          </button>
+        </form>
 
         <p className="auth-switch">
           {isLogin ? "New here? " : "Already have an account? "}

@@ -1,11 +1,28 @@
-import { useState } from "react";
-import { FOODS } from "../data/sampleData";
+import { useEffect, useState } from "react";
+import { getTrendingFoods } from "../api/apiCollection/foodApi";
 import FoodCard from "../components/cards/FoodCard";
 
 function HomePage({ onNavigate, onViewFood, liked, onLike }) {
   const [activeFilter, setActiveFilter] = useState("All");
+  const [foods, setFoods] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await getTrendingFoods();
+        if (!isMounted) return;
+        setFoods(Array.isArray(res?.data) ? res.data : []);
+      } catch (err) {
+        console.error("Failed to load trending foods", err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const filters = ["All","Veg","Vegan","Non-veg","Low-Cal","Budget"];
-  const filtered = FOODS.filter(f => {
+  const filtered = foods.filter(f => {
     if (activeFilter === "All") return true;
     if (activeFilter === "Veg") return f.type === "veg";
     if (activeFilter === "Vegan") return f.type === "vegan";
@@ -39,7 +56,7 @@ function HomePage({ onNavigate, onViewFood, liked, onLike }) {
         <p className="section-sub">Handpicked by our AI based on what's popular right now</p>
         <div className="cards-grid">
           {filtered.slice(0,8).map(f=>(
-            <FoodCard key={f.id} food={f} onView={onViewFood} liked={liked.includes(f.id)} onLike={onLike}/>
+            <FoodCard key={f._id || f.id} food={f} onView={onViewFood} liked={liked.includes(f._id || f.id)} onLike={onLike}/>
           ))}
         </div>
       </div>
